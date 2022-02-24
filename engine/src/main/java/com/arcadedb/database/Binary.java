@@ -140,7 +140,7 @@ public class Binary implements BinaryStructure, Comparable<Binary> {
     final int contentSize = toCopy.size();
     if (contentSize > 0) {
       checkForAllocation(buffer.position(), contentSize);
-      buffer.put(toCopy.content, 0, contentSize);
+      buffer.put(toCopy.content, toCopy.getContentBeginOffset(), contentSize);
     }
   }
 
@@ -536,7 +536,7 @@ public class Binary implements BinaryStructure, Comparable<Binary> {
     return size;
   }
 
-  public void size(int newSize) {
+  public void size(final int newSize) {
     if (newSize > content.length)
       checkForAllocation(0, newSize);
     else
@@ -596,8 +596,11 @@ public class Binary implements BinaryStructure, Comparable<Binary> {
    * @param bytesToWrite number of bytes to write
    */
   protected void checkForAllocation(final int offset, final int bytesToWrite) {
-    if (offset + bytesToWrite > content.length) {
+    final long newSizeAsLong = (long) offset + (long) bytesToWrite;
+    if (newSizeAsLong > Integer.MAX_VALUE)
+      throw new IllegalArgumentException("Binary objects cannot be larger than 2GB");
 
+    if (offset + bytesToWrite > content.length) {
       if (!autoResizable)
         throw new IllegalArgumentException("Cannot resize the buffer (autoResizable=false)");
 
@@ -608,7 +611,8 @@ public class Binary implements BinaryStructure, Comparable<Binary> {
         newSize = allocationChunkSize;
 
       final byte[] newContent = new byte[newSize];
-      System.arraycopy(content, 0, newContent, 0, content.length);
+      if (size > 0)
+        System.arraycopy(content, 0, newContent, 0, content.length);
       this.content = newContent;
 
       final int oldPosition = this.buffer.position();
